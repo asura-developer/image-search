@@ -1,0 +1,59 @@
+services:
+
+  # ─── PostgreSQL with pgvector ───────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: search-by-image-db
+    environment:
+      POSTGRES_DB: search_by_image
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./src/main/resources/db/migration/V1__enable_pgvector_and_create_index.sql:/docker-entrypoint-initdb.d/01-pgvector.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── CLIP Embedding Service (Python) ────────────────────────────────────────
+  clip-service:
+    build:
+      context: ./clip-service
+      dockerfile: Dockerfile
+    container_name: clip-service
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─── Spring Boot Application ────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: search-by-image-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: search_by_image
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      CLIP_SERVICE_URL: http://clip-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clip-service:
+        condition: service_healthy
+
+volumes:
+  pgdata:
