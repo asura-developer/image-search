@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
+@EntityListeners(backend.searchbyimage.search.index.IndexSyncListener.class)
 @Entity
 @Table(name = "product_details")
 public class ProductDetail {
@@ -104,4 +105,3 @@ public class ProductDetail {
 
     public ProductDetail() {}
 }
-

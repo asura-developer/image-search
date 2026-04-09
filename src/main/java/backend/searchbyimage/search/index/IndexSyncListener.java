@@ -1,5 +1,12 @@
 package backend.searchbyimage.search.index;
 
+import backend.searchbyimage.config.SpringContext;
+import backend.searchbyimage.domain.Category;
+import backend.searchbyimage.domain.Product;
+import backend.searchbyimage.domain.ProductDetail;
+import backend.searchbyimage.domain.ProductSearchMeta;
+import backend.searchbyimage.domain.Shop;
+import backend.searchbyimage.service.ProductSearchIndexService;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostUpdate;
 import org.slf4j.Logger;
@@ -15,11 +22,36 @@ public class IndexSyncListener {
 
     @PostPersist
     public void onPostPersist(Object entity) {
-        log.debug("Entity persisted, may need re-indexing: {}", entity.getClass().getSimpleName());
+        sync(entity);
     }
 
     @PostUpdate
     public void onPostUpdate(Object entity) {
-        log.debug("Entity updated, may need re-indexing: {}", entity.getClass().getSimpleName());
+        sync(entity);
+    }
+
+    private void sync(Object entity) {
+        log.debug("Entity changed, syncing search index: {}", entity.getClass().getSimpleName());
+        ProductSearchIndexService searchIndexService = SpringContext.getBean(ProductSearchIndexService.class);
+
+        if (entity instanceof Product product) {
+            searchIndexService.syncProduct(product.getId());
+            return;
+        }
+        if (entity instanceof ProductDetail detail && detail.getProduct() != null) {
+            searchIndexService.syncProduct(detail.getProduct().getId());
+            return;
+        }
+        if (entity instanceof ProductSearchMeta meta && meta.getProduct() != null) {
+            searchIndexService.syncProduct(meta.getProduct().getId());
+            return;
+        }
+        if (entity instanceof Shop shop) {
+            searchIndexService.syncProductsByShop(shop.getId());
+            return;
+        }
+        if (entity instanceof Category category) {
+            searchIndexService.syncProductsByCategory(category.getId());
+        }
     }
 }

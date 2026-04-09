@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.jpa.repository.Modifying;
 
@@ -18,6 +19,7 @@ public interface ProductEmbeddingRepository extends JpaRepository<ProductEmbeddi
 
     boolean existsByProductId(Long productId);
 
+    @Transactional
     @Modifying
     @Query(value = """
             INSERT INTO product_embeddings (product_id, embedding, source_image_url, model_version, created_at)

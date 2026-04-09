@@ -1,6 +1,7 @@
 package backend.searchbyimage.controller;
 
 import backend.searchbyimage.service.ImageSearchService;
+import backend.searchbyimage.service.ProductSearchIndexService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,9 +12,13 @@ import java.util.Map;
 public class IndexingController {
 
     private final ImageSearchService imageSearchService;
+    private final ProductSearchIndexService productSearchIndexService;
 
-    public IndexingController(ImageSearchService imageSearchService) {
+    public IndexingController(
+            ImageSearchService imageSearchService,
+            ProductSearchIndexService productSearchIndexService) {
         this.imageSearchService = imageSearchService;
+        this.productSearchIndexService = productSearchIndexService;
     }
 
     /**
@@ -22,8 +27,11 @@ public class IndexingController {
      */
     @PostMapping("/product/{id}")
     public ResponseEntity<Map<String, String>> indexProduct(@PathVariable Long id) {
-        imageSearchService.indexProduct(id);
-        return ResponseEntity.ok(Map.of("status", "indexed", "productId", id.toString()));
+        boolean indexed = imageSearchService.indexProduct(id);
+        return ResponseEntity.ok(Map.of(
+                "status", indexed ? "indexed" : "skipped",
+                "productId", id.toString()
+        ));
     }
 
     /**
@@ -46,5 +54,17 @@ public class IndexingController {
             @RequestParam(value = "batchSize", defaultValue = "100") int batchSize) {
         int indexed = imageSearchService.indexAll(batchSize);
         return ResponseEntity.ok(Map.of("status", "completed", "totalIndexed", indexed));
+    }
+
+    @PostMapping("/search/rebuild")
+    public ResponseEntity<Map<String, Object>> rebuildSearchIndex() {
+        int indexed = productSearchIndexService.rebuildAll();
+        return ResponseEntity.ok(Map.of("status", "completed", "indexed", indexed));
+    }
+
+    @PostMapping("/search/product/{id}")
+    public ResponseEntity<Map<String, Object>> rebuildSearchDocument(@PathVariable Long id) {
+        boolean indexed = productSearchIndexService.syncProduct(id);
+        return ResponseEntity.ok(Map.of("status", indexed ? "indexed" : "missing", "productId", id));
     }
 }

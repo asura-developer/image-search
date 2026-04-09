@@ -23,5 +23,9 @@ public class ProductSearchResult {
     private String platformName;
     private String categoryName;
     private double similarity;
+    private Double score;
+    private String matchType;
+    private String highlight;
+    private List<String> matchedFields;
     private List<String> imageUrls;
 }

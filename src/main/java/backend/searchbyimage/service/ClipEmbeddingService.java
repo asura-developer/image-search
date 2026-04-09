@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -76,14 +77,39 @@ public class ClipEmbeddingService {
         EmbeddingRequest request = new EmbeddingRequest(imageUrl);
         HttpEntity<EmbeddingRequest> requestEntity = new HttpEntity<>(request, headers);
 
-        ResponseEntity<EmbeddingResponse> response = restTemplate.exchange(
-                url, HttpMethod.POST, requestEntity, EmbeddingResponse.class);
+        ResponseEntity<EmbeddingResponse> response;
+        try {
+            response = restTemplate.exchange(
+                    url, HttpMethod.POST, requestEntity, EmbeddingResponse.class);
+        } catch (HttpStatusCodeException e) {
+            String responseBody = e.getResponseBodyAsString();
+            log.warn("CLIP service rejected image URL {} with status {}: {}",
+                    imageUrl, e.getStatusCode(), responseBody);
+            throw new ClipImageFetchException(
+                    "CLIP service failed to fetch image URL: " + imageUrl,
+                    e.getStatusCode().value(),
+                    isRetryableStatus(e.getStatusCode().value()),
+                    e
+            );
+        } catch (RuntimeException e) {
+            throw new ClipImageFetchException(
+                    "CLIP service request failed for image URL: " + imageUrl,
+                    null,
+                    true,
+                    e
+            );
+        }
 
         if (response.getBody() == null || response.getBody().getEmbedding() == null) {
             throw new RuntimeException("Empty embedding response from CLIP service");
         }
 
         return response.getBody().getEmbedding();
+    }
+
+    private boolean isRetryableStatus(int statusCode) {
+        return statusCode == 408 || statusCode == 420 || statusCode == 425 || statusCode == 429
+                || statusCode == 500 || statusCode == 502 || statusCode == 503 || statusCode == 504;
     }
 
     /**

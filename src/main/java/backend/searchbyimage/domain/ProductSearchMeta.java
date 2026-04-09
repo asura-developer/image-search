@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
+@EntityListeners(backend.searchbyimage.search.index.IndexSyncListener.class)
 @Entity
 @Table(name = "product_search_meta",
         indexes = {
@@ -50,4 +51,3 @@ public class ProductSearchMeta {
 
     public ProductSearchMeta() {}
 }
-

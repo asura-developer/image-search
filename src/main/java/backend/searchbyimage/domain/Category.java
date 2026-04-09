@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Getter
+@EntityListeners(backend.searchbyimage.search.index.IndexSyncListener.class)
 @Entity
 @Table(name = "categories",
         indexes = {
@@ -68,4 +69,3 @@ public class Category {
         this.categoryName = categoryName;
     }
 }
-
