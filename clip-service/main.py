@@ -53,11 +53,27 @@ class EmbeddingResponse(BaseModel):
     model: str = "clip-vit-base-patch32"
 
 
+class TextEmbeddingRequest(BaseModel):
+    text: str
+
+
 def generate_embedding(image: Image.Image) -> list[float]:
     """Generate a normalized 512-dim embedding from a PIL Image."""
     image_input = preprocess(image).unsqueeze(0).to(device)
     with torch.no_grad():
         features = model.encode_image(image_input)
+        features = features / features.norm(dim=-1, keepdim=True)
+    return features.squeeze().cpu().tolist()
+
+
+def generate_text_embedding(text: str) -> list[float]:
+    """Generate a normalized 512-dim embedding from text."""
+    if not text or not text.strip():
+        raise ValueError("Text must not be empty")
+
+    text_tokens = clip.tokenize([text]).to(device)
+    with torch.no_grad():
+        features = model.encode_text(text_tokens)
         features = features / features.norm(dim=-1, keepdim=True)
     return features.squeeze().cpu().tolist()
 
@@ -102,6 +118,17 @@ async def embed_image_url(request: ImageUrlRequest):
     except Exception as e:
         logger.error(f"Failed to process image from URL: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
+
+
+@app.post("/embed/text", response_model=EmbeddingResponse)
+async def embed_text(request: TextEmbeddingRequest):
+    """Generate embedding from a text query."""
+    try:
+        embedding = generate_text_embedding(request.text)
+        return EmbeddingResponse(embedding=embedding)
+    except Exception as e:
+        logger.error(f"Failed to process text query: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to process text: {str(e)}")
 
 
 @app.get("/health")

@@ -21,6 +21,7 @@ public class SearchOptimizationInitializer {
     void initialize() {
         run("CREATE EXTENSION IF NOT EXISTS pg_trgm");
         run("CREATE EXTENSION IF NOT EXISTS unaccent");
+        run("CREATE EXTENSION IF NOT EXISTS vector");
         run("""
                 CREATE TABLE IF NOT EXISTS product_search_documents (
                     product_id BIGINT PRIMARY KEY,
@@ -35,6 +36,9 @@ public class SearchOptimizationInitializer {
                     platform_name VARCHAR(20),
                     category_name VARCHAR(255),
                     brand VARCHAR(255),
+                    in_stock BOOLEAN NOT NULL DEFAULT TRUE,
+                    popularity_score DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    business_score DOUBLE PRECISION NOT NULL DEFAULT 0,
                     search_text TEXT NOT NULL,
                     search_vector tsvector NOT NULL,
                     sortable_price NUMERIC,
@@ -42,9 +46,25 @@ public class SearchOptimizationInitializer {
                 )
                 """);
         run("""
+                ALTER TABLE product_search_documents
+                ADD COLUMN IF NOT EXISTS in_stock BOOLEAN NOT NULL DEFAULT TRUE
+                """);
+        run("""
+                ALTER TABLE product_search_documents
+                ADD COLUMN IF NOT EXISTS popularity_score DOUBLE PRECISION NOT NULL DEFAULT 0
+                """);
+        run("""
+                ALTER TABLE product_search_documents
+                ADD COLUMN IF NOT EXISTS business_score DOUBLE PRECISION NOT NULL DEFAULT 0
+                """);
+        run("""
                 CREATE INDEX IF NOT EXISTS idx_product_search_documents_vector
                 ON product_search_documents
                 USING GIN (search_vector)
+                """);
+        run("""
+                CREATE INDEX IF NOT EXISTS idx_product_search_documents_item_id
+                ON product_search_documents (item_id)
                 """);
         run("""
                 CREATE INDEX IF NOT EXISTS idx_product_search_documents_platform
@@ -57,6 +77,10 @@ public class SearchOptimizationInitializer {
         run("""
                 CREATE INDEX IF NOT EXISTS idx_product_search_documents_shop
                 ON product_search_documents (shop_name)
+                """);
+        run("""
+                CREATE INDEX IF NOT EXISTS idx_product_search_documents_in_stock
+                ON product_search_documents (in_stock)
                 """);
         run("""
                 CREATE INDEX IF NOT EXISTS idx_product_search_documents_price

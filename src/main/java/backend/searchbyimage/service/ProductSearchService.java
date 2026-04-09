@@ -10,6 +10,8 @@ import backend.searchbyimage.search.model.ProductSearchPage;
 import backend.searchbyimage.search.model.ProductSearchFilter;
 import backend.searchbyimage.search.model.ProductSearchRow;
 import backend.searchbyimage.search.repository.ProductSearchRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,9 @@ import java.util.Map;
 @Service
 public class ProductSearchService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProductSearchService.class);
+
+    private final ClipEmbeddingService clipEmbeddingService;
     private final ProductQueryNormalizer queryNormalizer;
     private final ProductSearchRepository productSearchRepository;
     private final ProductImageRepository productImageRepository;
@@ -36,9 +41,11 @@ public class ProductSearchService {
     private int suggestionLimit;
 
     public ProductSearchService(
+            ClipEmbeddingService clipEmbeddingService,
             ProductQueryNormalizer queryNormalizer,
             ProductSearchRepository productSearchRepository,
             ProductImageRepository productImageRepository) {
+        this.clipEmbeddingService = clipEmbeddingService;
         this.queryNormalizer = queryNormalizer;
         this.productSearchRepository = productSearchRepository;
         this.productImageRepository = productImageRepository;
@@ -80,7 +87,8 @@ public class ProductSearchService {
                     .build();
         }
 
-        ProductSearchPage searchPage = productSearchRepository.searchProducts(query);
+        String queryEmbedding = buildQueryEmbedding(query.normalized());
+        ProductSearchPage searchPage = productSearchRepository.searchProducts(query, queryEmbedding);
         List<ProductSearchRow> rows = searchPage.rows();
         Map<Long, List<String>> imageUrlsByProductId = loadImages(rows);
 
@@ -119,6 +127,15 @@ public class ProductSearchService {
                 .suggestions(suggestions)
                 .results(results)
                 .build();
+    }
+
+    private String buildQueryEmbedding(String normalizedQuery) {
+        try {
+            return ClipEmbeddingService.toVectorString(clipEmbeddingService.getEmbeddingFromText(normalizedQuery));
+        } catch (RuntimeException e) {
+            log.warn("Falling back to lexical search because query embedding failed: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Transactional(readOnly = true)

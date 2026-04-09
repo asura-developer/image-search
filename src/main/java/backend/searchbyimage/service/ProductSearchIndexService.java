@@ -72,6 +72,9 @@ public class ProductSearchIndexService {
                     platform_name,
                     category_name,
                     brand,
+                    in_stock,
+                    popularity_score,
+                    business_score,
                     search_text,
                     search_vector,
                     sortable_price,
@@ -90,6 +93,30 @@ public class ProductSearchIndexService {
                     pf.name,
                     COALESCE(c.category_name, psm.category_name),
                     pd.brand,
+                    COALESCE(pd.in_stock, TRUE),
+                    LEAST(
+                        1.0,
+                        LN(
+                            1 + GREATEST(
+                                CASE
+                                    WHEN NULLIF(regexp_replace(COALESCE(p.sales_count, ''), '[^0-9]', '', 'g'), '') IS NULL
+                                        THEN 0
+                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(p.sales_count, ''), '[^0-9]', '', 'g'), '') AS numeric)
+                                END,
+                                CASE
+                                    WHEN NULLIF(regexp_replace(COALESCE(pd.sales_volume, ''), '[^0-9]', '', 'g'), '') IS NULL
+                                        THEN 0
+                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(pd.sales_volume, ''), '[^0-9]', '', 'g'), '') AS numeric)
+                                END,
+                                CASE
+                                    WHEN NULLIF(regexp_replace(COALESCE(pd.review_count, ''), '[^0-9]', '', 'g'), '') IS NULL
+                                        THEN 0
+                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(pd.review_count, ''), '[^0-9]', '', 'g'), '') AS numeric)
+                                END
+                            )
+                        ) / 10.0
+                    ),
+                    0.0,
                     lower(
                         unaccent(
                             concat_ws(
@@ -105,22 +132,15 @@ public class ProductSearchIndexService {
                             )
                         )
                     ),
-                    to_tsvector(
-                        'simple',
-                        unaccent(
-                            concat_ws(
-                                ' ',
-                                p.title,
-                                COALESCE(pd.brand, ''),
-                                COALESCE(c.category_name, psm.category_name, ''),
-                                COALESCE(s.shop_name, ''),
-                                COALESCE(p.location, ''),
-                                COALESCE(pd.full_title, ''),
-                                COALESCE(pd.full_description, ''),
-                                COALESCE(psm.search_keyword, '')
-                            )
-                        )
-                    ),
+                    setweight(to_tsvector('simple', unaccent(COALESCE(p.title, ''))), 'A') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(p.item_id, ''))), 'A') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.brand, ''))), 'A') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(c.category_name, psm.category_name, ''))), 'B') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(s.shop_name, ''))), 'B') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(p.location, ''))), 'C') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(psm.search_keyword, ''))), 'C') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.full_title, ''))), 'C') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.full_description, ''))), 'D'),
                     CASE
                         WHEN NULLIF(regexp_replace(COALESCE(pd.original_price, p.price, ''), '[^0-9.]', '', 'g'), '') IS NULL
                             THEN NULL
@@ -146,6 +166,9 @@ public class ProductSearchIndexService {
                     platform_name = EXCLUDED.platform_name,
                     category_name = EXCLUDED.category_name,
                     brand = EXCLUDED.brand,
+                    in_stock = EXCLUDED.in_stock,
+                    popularity_score = EXCLUDED.popularity_score,
+                    business_score = EXCLUDED.business_score,
                     search_text = EXCLUDED.search_text,
                     search_vector = EXCLUDED.search_vector,
                     sortable_price = EXCLUDED.sortable_price,

@@ -2,6 +2,7 @@ package backend.searchbyimage.service;
 
 import backend.searchbyimage.dto.EmbeddingRequest;
 import backend.searchbyimage.dto.EmbeddingResponse;
+import backend.searchbyimage.dto.TextEmbeddingRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -99,6 +100,28 @@ public class ClipEmbeddingService {
                     e
             );
         }
+
+        if (response.getBody() == null || response.getBody().getEmbedding() == null) {
+            throw new RuntimeException("Empty embedding response from CLIP service");
+        }
+
+        return response.getBody().getEmbedding();
+    }
+
+    /**
+     * Get embedding from a text query using the CLIP text encoder.
+     */
+    public List<Float> getEmbeddingFromText(String text) {
+        String url = clipServiceUrl + "/embed/text";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        TextEmbeddingRequest request = new TextEmbeddingRequest(text);
+        HttpEntity<TextEmbeddingRequest> requestEntity = new HttpEntity<>(request, headers);
+
+        ResponseEntity<EmbeddingResponse> response = restTemplate.exchange(
+                url, HttpMethod.POST, requestEntity, EmbeddingResponse.class);
 
         if (response.getBody() == null || response.getBody().getEmbedding() == null) {
             throw new RuntimeException("Empty embedding response from CLIP service");
