@@ -83,11 +83,11 @@ public class ProductSearchRepository {
                         OR similarity(sd.category_lower, :query) >= :trigramThreshold
                         OR similarity(sd.shop_lower, :query) >= :trigramThreshold
                     )
-                    AND (:platform IS NULL OR lower(sd.platform_name) = :platform)
-                    AND (:category IS NULL OR lower(sd.category_name) = :category)
-                    AND (:shop IS NULL OR lower(sd.shop_name) = :shop)
-                    AND (:minPrice IS NULL OR sd.sortable_price >= :minPrice)
-                    AND (:maxPrice IS NULL OR sd.sortable_price <= :maxPrice)
+                    AND (CAST(:platform AS text) IS NULL OR lower(sd.platform_name) = CAST(:platform AS text))
+                    AND (CAST(:category AS text) IS NULL OR lower(sd.category_name) = CAST(:category AS text))
+                    AND (CAST(:shop AS text) IS NULL OR lower(sd.shop_name) = CAST(:shop AS text))
+                    AND (CAST(:minPrice AS double precision) IS NULL OR sd.sortable_price >= CAST(:minPrice AS double precision))
+                    AND (CAST(:maxPrice AS double precision) IS NULL OR sd.sortable_price <= CAST(:maxPrice AS double precision))
                 )
                 SELECT
                     r.id,
@@ -126,11 +126,11 @@ public class ProductSearchRepository {
                     ) AS matched_fields
                 FROM ranked r
                 ORDER BY
-                    CASE WHEN :sort = 'price_asc' THEN r.sortable_price END ASC NULLS LAST,
-                    CASE WHEN :sort = 'price_desc' THEN r.sortable_price END DESC NULLS LAST,
-                    CASE WHEN :sort = 'newest' THEN r.id END DESC,
-                    CASE WHEN :sort = 'title' THEN lower(r.title) END ASC,
-                    CASE WHEN :sort = 'relevance' THEN (r.lexical_score + (r.fulltext_score * 10.0) + (r.trigram_score * 6.0)) END DESC,
+                    CASE WHEN CAST(:sort AS text) = 'price_asc' THEN r.sortable_price END ASC NULLS LAST,
+                    CASE WHEN CAST(:sort AS text) = 'price_desc' THEN r.sortable_price END DESC NULLS LAST,
+                    CASE WHEN CAST(:sort AS text) = 'newest' THEN r.id END DESC,
+                    CASE WHEN CAST(:sort AS text) = 'title' THEN lower(r.title) END ASC,
+                    CASE WHEN CAST(:sort AS text) = 'relevance' THEN (r.lexical_score + (r.fulltext_score * 10.0) + (r.trigram_score * 6.0)) END DESC,
                     r.id DESC
                 LIMIT :limit OFFSET :offset
                 """;
