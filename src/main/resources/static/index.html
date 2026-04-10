@@ -118,6 +118,13 @@
             display: flex; flex-wrap: wrap; gap: 4px 12px;
         }
 
+        .product-card .product-id {
+            margin-top: 8px;
+            font-size: 0.72rem;
+            color: #555;
+            font-weight: 600;
+        }
+
         .product-card a { text-decoration: none; color: inherit; }
 
         .error-msg {
@@ -321,6 +328,7 @@
                                 <span class="price">${escapeHtml(item.price || '-')}</span>
                                 <span class="similarity ${simClass}">${simPct}%</span>
                             </div>
+                            ${item.productId != null ? `<div class="product-id">Product ID: ${escapeHtml(String(item.productId))}</div>` : ''}
                             <div class="details">
                                 ${item.shopName ? `<span>${escapeHtml(item.shopName)}</span>` : ''}
                                 ${item.platformName ? `<span>${escapeHtml(item.platformName)}</span>` : ''}

@@ -1,5 +1,8 @@
 package backend.searchbyimage.service;
 
+import lombok.Getter;
+
+@Getter
 public class ClipImageFetchException extends RuntimeException {
 
     private final Integer httpStatus;
@@ -11,11 +14,4 @@ public class ClipImageFetchException extends RuntimeException {
         this.retryable = retryable;
     }
 
-    public Integer getHttpStatus() {
-        return httpStatus;
-    }
-
-    public boolean isRetryable() {
-        return retryable;
-    }
 }
