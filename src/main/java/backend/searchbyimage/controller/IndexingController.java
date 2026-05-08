@@ -26,11 +26,11 @@ public class IndexingController {
      * Index a single product (generate and store its image embedding).
      */
     @PostMapping("/product/{id}")
-    public ResponseEntity<Map<String, String>> indexProduct(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> indexProduct(@PathVariable String id) {
         boolean indexed = imageSearchService.indexProduct(id);
         return ResponseEntity.ok(Map.of(
                 "status", indexed ? "indexed" : "skipped",
-                "productId", id.toString()
+                "id", id
         ));
     }
 
@@ -63,8 +63,8 @@ public class IndexingController {
     }
 
     @PostMapping("/search/product/{id}")
-    public ResponseEntity<Map<String, Object>> rebuildSearchDocument(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> rebuildSearchDocument(@PathVariable String id) {
         boolean indexed = productSearchIndexService.syncProduct(id);
-        return ResponseEntity.ok(Map.of("status", indexed ? "indexed" : "missing", "productId", id));
+        return ResponseEntity.ok(Map.of("status", indexed ? "indexed" : "missing", "id", id));
     }
 }

@@ -28,13 +28,15 @@ public class ImageSearchController {
     public ResponseEntity<ImageSearchResponse> searchByImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "limit", required = false) Integer limit,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "perPage", required = false) Integer perPage,
             @RequestParam(value = "threshold", required = false) Double threshold) throws IOException {
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        ImageSearchResponse response = imageSearchService.searchByImage(file, limit, threshold);
+        ImageSearchResponse response = imageSearchService.searchByImage(file, page, perPage, limit, threshold);
         return ResponseEntity.ok(response);
     }
 
@@ -46,6 +48,8 @@ public class ImageSearchController {
     public ResponseEntity<ImageSearchResponse> searchByImageUrl(
             @RequestBody Map<String, String> body,
             @RequestParam(value = "limit", required = false) Integer limit,
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "perPage", required = false) Integer perPage,
             @RequestParam(value = "threshold", required = false) Double threshold) {
 
         String imageUrl = body.get("image_url");
@@ -53,7 +57,7 @@ public class ImageSearchController {
             return ResponseEntity.badRequest().build();
         }
 
-        ImageSearchResponse response = imageSearchService.searchByImageUrl(imageUrl, limit, threshold);
+        ImageSearchResponse response = imageSearchService.searchByImageUrl(imageUrl, page, perPage, limit, threshold);
         return ResponseEntity.ok(response);
     }
 }

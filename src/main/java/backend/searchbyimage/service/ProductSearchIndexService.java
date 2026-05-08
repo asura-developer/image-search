@@ -1,177 +1,139 @@
 package backend.searchbyimage.service;
 
-import backend.searchbyimage.repository.ProductRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ProductSearchIndexService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final ProductRepository productRepository;
 
-    public ProductSearchIndexService(JdbcTemplate jdbcTemplate, ProductRepository productRepository) {
+    public ProductSearchIndexService(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.productRepository = productRepository;
     }
 
     @Transactional
     public int rebuildAll() {
-        return jdbcTemplate.update(upsertSql(null));
+        jdbcTemplate.update("TRUNCATE product_search_documents");
+        return jdbcTemplate.update(upsertSql(""));
     }
 
     @Transactional
-    public boolean syncProduct(Long productId) {
-        return jdbcTemplate.update(upsertSql(" WHERE p.id = ?"), productId) > 0;
+    public boolean syncProduct(String productId) {
+        UUID.fromString(productId);
+        return jdbcTemplate.update(upsertSql("WHERE p.id = CAST(? AS uuid)"), productId) > 0;
     }
 
     @Transactional
-    public int syncProductsByShop(Long shopId) {
-        List<Long> productIds = productRepository.findIdsByShopId(shopId);
-        int synced = 0;
-        for (Long productId : productIds) {
-            if (syncProduct(productId)) {
-                synced++;
-            }
-        }
-        return synced;
-    }
-
-    @Transactional
-    public int syncProductsByCategory(Long categoryId) {
-        List<Long> productIds = productRepository.findIdsByCategoryId(categoryId);
-        int synced = 0;
-        for (Long productId : productIds) {
-            if (syncProduct(productId)) {
-                synced++;
-            }
-        }
-        return synced;
-    }
-
-    @Transactional
-    public void deleteProduct(Long productId) {
-        jdbcTemplate.update("DELETE FROM product_search_documents WHERE product_id = ?", productId);
+    public void deleteProduct(String productId) {
+        UUID.fromString(productId);
+        jdbcTemplate.update("DELETE FROM product_search_documents WHERE product_id = CAST(? AS uuid)", productId);
     }
 
     private String upsertSql(String whereClause) {
         return """
+                WITH latest_details AS (
+                    SELECT DISTINCT ON (pd.product_id)
+                        pd.product_id,
+                        pd.product_title,
+                        pd.supplier_name,
+                        pd.original_price,
+                        pd.original_price_usd,
+                        pd.promotional_price,
+                        pd.promotional_price_usd,
+                        pd.price_text,
+                        pd.scraped_at,
+                        pd.created_at
+                    FROM product_details pd
+                    ORDER BY pd.product_id, pd.scraped_at DESC NULLS LAST, pd.created_at DESC
+                )
                 INSERT INTO product_search_documents (
                     product_id,
-                    item_id,
                     title,
-                    price,
-                    image,
-                    link,
-                    sales_count,
-                    location,
-                    shop_name,
-                    platform_name,
-                    category_name,
-                    brand,
-                    in_stock,
-                    popularity_score,
-                    business_score,
+                    product_url,
+                    image_url,
+                    company,
+                    category_id,
+                    category_title,
+                    category_slug,
+                    subcategory_title,
+                    subcategory_slug,
+                    leaf_category_title,
+                    leaf_category_slug,
+                    original_price,
+                    sortable_price,
                     search_text,
                     search_vector,
-                    sortable_price,
                     updated_at
                 )
                 SELECT
                     p.id,
-                    p.item_id,
-                    p.title,
-                    p.price,
-                    p.image,
-                    p.link,
-                    p.sales_count,
-                    p.location,
-                    s.shop_name,
-                    pf.name,
-                    COALESCE(c.category_name, psm.category_name),
-                    pd.brand,
-                    COALESCE(pd.in_stock, TRUE),
-                    LEAST(
-                        1.0,
-                        LN(
-                            1 + GREATEST(
-                                CASE
-                                    WHEN NULLIF(regexp_replace(COALESCE(p.sales_count, ''), '[^0-9]', '', 'g'), '') IS NULL
-                                        THEN 0
-                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(p.sales_count, ''), '[^0-9]', '', 'g'), '') AS numeric)
-                                END,
-                                CASE
-                                    WHEN NULLIF(regexp_replace(COALESCE(pd.sales_volume, ''), '[^0-9]', '', 'g'), '') IS NULL
-                                        THEN 0
-                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(pd.sales_volume, ''), '[^0-9]', '', 'g'), '') AS numeric)
-                                END,
-                                CASE
-                                    WHEN NULLIF(regexp_replace(COALESCE(pd.review_count, ''), '[^0-9]', '', 'g'), '') IS NULL
-                                        THEN 0
-                                    ELSE CAST(NULLIF(regexp_replace(COALESCE(pd.review_count, ''), '[^0-9]', '', 'g'), '') AS numeric)
-                                END
-                            )
-                        ) / 10.0
-                    ),
-                    0.0,
+                    COALESCE(NULLIF(p.title, ''), ld.product_title),
+                    p.product_url,
+                    p.image_url,
+                    COALESCE(NULLIF(p.company, ''), ld.supplier_name),
+                    c.uuid,
+                    c.category_title,
+                    c.slug,
+                    sc.sub_category_title,
+                    sc.sub_category_slug,
+                    lc.leaf_category_title,
+                    COALESCE(lc.leaf_category_slug, lc.slug),
+                    COALESCE(ld.original_price, ld.promotional_price),
+                    COALESCE(ld.promotional_price_usd, ld.original_price_usd, ld.promotional_price, ld.original_price),
                     lower(
                         unaccent(
                             concat_ws(
                                 ' ',
+                                p.id::text,
                                 p.title,
-                                COALESCE(pd.brand, ''),
-                                COALESCE(c.category_name, psm.category_name, ''),
-                                COALESCE(s.shop_name, ''),
-                                COALESCE(p.location, ''),
-                                COALESCE(pd.full_title, ''),
-                                COALESCE(pd.full_description, ''),
-                                COALESCE(psm.search_keyword, '')
+                                ld.product_title,
+                                p.company,
+                                ld.supplier_name,
+                                c.category_title,
+                                c.slug,
+                                sc.sub_category_title,
+                                sc.sub_category_slug,
+                                lc.leaf_category_title,
+                                lc.leaf_category_slug,
+                                ld.price_text
                             )
                         )
                     ),
-                    setweight(to_tsvector('simple', unaccent(COALESCE(p.title, ''))), 'A') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(p.item_id, ''))), 'A') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.brand, ''))), 'A') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(c.category_name, psm.category_name, ''))), 'B') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(s.shop_name, ''))), 'B') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(p.location, ''))), 'C') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(psm.search_keyword, ''))), 'C') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.full_title, ''))), 'C') ||
-                    setweight(to_tsvector('simple', unaccent(COALESCE(pd.full_description, ''))), 'D'),
-                    CASE
-                        WHEN NULLIF(regexp_replace(COALESCE(pd.original_price, p.price, ''), '[^0-9.]', '', 'g'), '') IS NULL
-                            THEN NULL
-                        ELSE CAST(NULLIF(regexp_replace(COALESCE(pd.original_price, p.price, ''), '[^0-9.]', '', 'g'), '') AS numeric)
-                    END,
-                    NOW()
+                    setweight(to_tsvector('simple', unaccent(COALESCE(p.title, ld.product_title, ''))), 'A') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(p.company, ld.supplier_name, ''))), 'B') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(c.category_title, ''))), 'B') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(sc.sub_category_title, ''))), 'C') ||
+                    setweight(to_tsvector('simple', unaccent(COALESCE(lc.leaf_category_title, ''))), 'C'),
+                    GREATEST(
+                        COALESCE(p.updated_at, p.created_at, '-infinity'::timestamptz),
+                        COALESCE(ld.scraped_at, ld.created_at, '-infinity'::timestamptz)
+                    )
                 FROM products p
-                LEFT JOIN product_details pd ON pd.product_id = p.id
-                LEFT JOIN product_search_meta psm ON psm.product_id = p.id
-                LEFT JOIN shops s ON s.id = p.shop_id
-                LEFT JOIN platforms pf ON pf.id = p.platform_id
-                LEFT JOIN categories c ON c.id = p.category_fk
-                """ + (whereClause == null ? "" : whereClause) + """
+                LEFT JOIN latest_details ld ON ld.product_id = p.id
+                LEFT JOIN categories c ON c.uuid = p.category_id
+                LEFT JOIN subcategories sc ON sc.uuid = p.subcategory_id
+                LEFT JOIN leaf_categories lc ON lc.id = p.leaf_category_id
+                """ + whereClause + """
                 ON CONFLICT (product_id) DO UPDATE SET
-                    item_id = EXCLUDED.item_id,
                     title = EXCLUDED.title,
-                    price = EXCLUDED.price,
-                    image = EXCLUDED.image,
-                    link = EXCLUDED.link,
-                    sales_count = EXCLUDED.sales_count,
-                    location = EXCLUDED.location,
-                    shop_name = EXCLUDED.shop_name,
-                    platform_name = EXCLUDED.platform_name,
-                    category_name = EXCLUDED.category_name,
-                    brand = EXCLUDED.brand,
-                    in_stock = EXCLUDED.in_stock,
-                    popularity_score = EXCLUDED.popularity_score,
-                    business_score = EXCLUDED.business_score,
+                    product_url = EXCLUDED.product_url,
+                    image_url = EXCLUDED.image_url,
+                    company = EXCLUDED.company,
+                    category_id = EXCLUDED.category_id,
+                    category_title = EXCLUDED.category_title,
+                    category_slug = EXCLUDED.category_slug,
+                    subcategory_title = EXCLUDED.subcategory_title,
+                    subcategory_slug = EXCLUDED.subcategory_slug,
+                    leaf_category_title = EXCLUDED.leaf_category_title,
+                    leaf_category_slug = EXCLUDED.leaf_category_slug,
+                    original_price = EXCLUDED.original_price,
+                    sortable_price = EXCLUDED.sortable_price,
                     search_text = EXCLUDED.search_text,
                     search_vector = EXCLUDED.search_vector,
-                    sortable_price = EXCLUDED.sortable_price,
                     updated_at = EXCLUDED.updated_at
                 """;
     }

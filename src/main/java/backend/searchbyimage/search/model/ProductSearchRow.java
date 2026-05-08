@@ -1,19 +1,18 @@
 package backend.searchbyimage.search.model;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public record ProductSearchRow(
-        Long productId,
-        String itemId,
+        String id,
         String title,
-        String price,
-        String image,
-        String link,
-        String salesCount,
-        String location,
-        String shopName,
-        String platformName,
-        String categoryName,
+        String productUrl,
+        String imageUrl,
+        String company,
+        String categoryId,
+        String categoryTitle,
+        String categorySlug,
+        BigDecimal originalPrice,
         Double score,
         String matchType,
         String highlight,

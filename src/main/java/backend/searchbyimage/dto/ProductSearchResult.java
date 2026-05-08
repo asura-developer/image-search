@@ -1,31 +1,34 @@
 package backend.searchbyimage.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
+import java.math.BigDecimal;
 
 @Getter
 @Setter
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProductSearchResult {
 
-    private Long productId;
-    private String itemId;
+    private String id;
     private String title;
-    private String price;
-    private String image;
-    private String link;
-    private String salesCount;
-    private String location;
-    private String shopName;
-    private String platformName;
-    private String categoryName;
-    private double similarity;
-    private Double score;
-    private String matchType;
-    private String highlight;
-    private List<String> matchedFields;
-    private List<String> imageUrls;
+    private String productUrl;
+    private String imageUrl;
+    private String company;
+    private BigDecimal originalPrice;
+    private CategorySummary category;
+    private Double similarity;
+
+    @Getter
+    @Setter
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class CategorySummary {
+        private String id;
+        private String title;
+        private String slug;
+    }
 }

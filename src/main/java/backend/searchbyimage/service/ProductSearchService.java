@@ -1,9 +1,7 @@
 package backend.searchbyimage.service;
 
-import backend.searchbyimage.domain.ProductImage;
 import backend.searchbyimage.dto.ProductSearchResult;
 import backend.searchbyimage.dto.ProductTextSearchResponse;
-import backend.searchbyimage.repository.ProductImageRepository;
 import backend.searchbyimage.search.ProductQueryNormalizer;
 import backend.searchbyimage.search.model.NormalizedProductSearchQuery;
 import backend.searchbyimage.search.model.ProductSearchPage;
@@ -17,9 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class ProductSearchService {
@@ -29,7 +25,7 @@ public class ProductSearchService {
     private final ClipEmbeddingService clipEmbeddingService;
     private final ProductQueryNormalizer queryNormalizer;
     private final ProductSearchRepository productSearchRepository;
-    private final ProductImageRepository productImageRepository;
+    private final ProductSearchResultMapper productSearchResultMapper;
 
     @Value("${product-search.default-limit:20}")
     private int defaultLimit;
@@ -44,11 +40,11 @@ public class ProductSearchService {
             ClipEmbeddingService clipEmbeddingService,
             ProductQueryNormalizer queryNormalizer,
             ProductSearchRepository productSearchRepository,
-            ProductImageRepository productImageRepository) {
+            ProductSearchResultMapper productSearchResultMapper) {
         this.clipEmbeddingService = clipEmbeddingService;
         this.queryNormalizer = queryNormalizer;
         this.productSearchRepository = productSearchRepository;
-        this.productImageRepository = productImageRepository;
+        this.productSearchResultMapper = productSearchResultMapper;
     }
 
     @Transactional(readOnly = true)
@@ -90,27 +86,9 @@ public class ProductSearchService {
         String queryEmbedding = buildQueryEmbedding(query.normalized());
         ProductSearchPage searchPage = productSearchRepository.searchProducts(query, queryEmbedding);
         List<ProductSearchRow> rows = searchPage.rows();
-        Map<Long, List<String>> imageUrlsByProductId = loadImages(rows);
 
         List<ProductSearchResult> results = rows.stream()
-                .map(row -> ProductSearchResult.builder()
-                        .productId(row.productId())
-                        .itemId(row.itemId())
-                        .title(row.title())
-                        .price(row.price())
-                        .image(row.image())
-                        .link(row.link())
-                        .salesCount(row.salesCount())
-                        .location(row.location())
-                        .shopName(row.shopName())
-                        .platformName(row.platformName())
-                        .categoryName(row.categoryName())
-                        .score(round(row.score()))
-                        .matchType(row.matchType())
-                        .highlight(row.highlight())
-                        .matchedFields(row.matchedFields())
-                        .imageUrls(imageUrlsByProductId.getOrDefault(row.productId(), List.of()))
-                        .build())
+                .map(productSearchResultMapper::toResult)
                 .toList();
 
         List<String> suggestions = results.isEmpty()
@@ -162,27 +140,4 @@ public class ProductSearchService {
         return productSearchRepository.fetchSuggestions(normalized, effectiveLimit);
     }
 
-    private Map<Long, List<String>> loadImages(List<ProductSearchRow> rows) {
-        List<Long> productIds = rows.stream().map(ProductSearchRow::productId).distinct().toList();
-        if (productIds.isEmpty()) {
-            return Map.of();
-        }
-
-        List<ProductImage> images = productImageRepository.findByProductIdInOrderByProductIdAscSortOrderAsc(productIds);
-
-        Map<Long, List<String>> imageUrlsByProductId = new LinkedHashMap<>();
-        for (ProductImage image : images) {
-            imageUrlsByProductId
-                    .computeIfAbsent(image.getProduct().getId(), ignored -> new java.util.ArrayList<>())
-                    .add(image.getUrl());
-        }
-        return imageUrlsByProductId;
-    }
-
-    private double round(Double score) {
-        if (score == null) {
-            return 0.0;
-        }
-        return Math.round(score * 1000.0) / 1000.0;
-    }
 }
