@@ -16,24 +16,15 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "products")
-public class Product {
+@Table(name = "scrape_runs")
+public class ScrapeRun {
 
     @Id
     @Column(nullable = false)
     private UUID id;
 
-    @Column(columnDefinition = "TEXT")
-    private String title;
-
-    @Column(name = "product_url", unique = true, columnDefinition = "TEXT")
-    private String productUrl;
-
-    @Column(name = "image_url", columnDefinition = "TEXT")
-    private String imageUrl;
-
-    @Column(columnDefinition = "TEXT")
-    private String company;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String keyword;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
@@ -47,9 +38,15 @@ public class Product {
     @JoinColumn(name = "leaf_category_id")
     private LeafCategory leafCategory;
 
-    @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String status;
 
-    @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
+    @Column(name = "started_at", nullable = false)
+    private OffsetDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private OffsetDateTime completedAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String error;
 }

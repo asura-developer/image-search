@@ -1,71 +1,37 @@
 package backend.searchbyimage.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.UUID;
 
 @Getter
-@EntityListeners(backend.searchbyimage.search.index.IndexSyncListener.class)
+@Setter
 @Entity
-@Table(name = "categories",
-        indexes = {
-                @Index(name = "idx_categories_platform", columnList = "platform_id"),
-                @Index(name = "idx_categories_category_id", columnList = "category_id"),
-                @Index(name = "idx_categories_name", columnList = "category_name")
-        },
-        uniqueConstraints = @UniqueConstraint(columnNames = {"platform_id", "category_id"}))
+@Table(name = "categories")
 public class Category {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "uuid", nullable = false)
+    private UUID uuid;
 
-    @JsonIgnore
-    @Setter
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "platform_id", nullable = false)
-    private Platform platform;
+    @Column(name = "category_title", nullable = false, columnDefinition = "TEXT")
+    private String categoryTitle;
 
-    @Setter
-    @Column(name = "category_id", nullable = false, length = 100)
-    private String categoryId;
+    @Column(nullable = false, unique = true, columnDefinition = "TEXT")
+    private String slug;
 
-    @Setter
-    @Column(name = "category_name", length = 255)
-    private String categoryName;
+    @Column(name = "icon_url", columnDefinition = "TEXT")
+    private String iconUrl;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    @Setter
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
-
-    @JsonIgnore
-    @OneToMany(mappedBy = "category", fetch = FetchType.LAZY)
-    private List<Product> products = new ArrayList<>();
-
-    @PrePersist
-    protected void onCreate() {
-        createdAt = OffsetDateTime.now();
-        updatedAt = OffsetDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = OffsetDateTime.now();
-    }
-
-    public Category() {}
-
-    public Category(Platform platform, String categoryId, String categoryName) {
-        this.platform = platform;
-        this.categoryId = categoryId;
-        this.categoryName = categoryName;
-    }
 }

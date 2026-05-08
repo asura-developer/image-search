@@ -66,6 +66,7 @@ public class SearchOptimizationInitializer {
                     updated_at timestamptz NOT NULL DEFAULT now()
                 )
                 """);
+        addProductSearchDocumentColumns();
         run("""
                 CREATE INDEX IF NOT EXISTS product_search_documents_vector_idx
                 ON product_search_documents
@@ -112,48 +113,92 @@ public class SearchOptimizationInitializer {
                 ON products
                 USING GIN ((lower(title)) gin_trgm_ops)
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS products_company_trgm_idx
-                ON products
-                USING GIN ((lower(company)) gin_trgm_ops)
+        runIfColumnExists("products", "company", """
+                    CREATE INDEX IF NOT EXISTS products_company_trgm_idx
+                    ON products
+                    USING GIN ((lower(company)) gin_trgm_ops)
                 """);
         run("""
                 CREATE INDEX IF NOT EXISTS products_updated_at_idx
                 ON products(updated_at DESC NULLS LAST)
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS products_image_url_present_idx
-                ON products(id)
-                WHERE image_url IS NOT NULL
+        runIfColumnExists("products", "image_url", """
+                    CREATE INDEX IF NOT EXISTS products_image_url_present_idx
+                    ON products(id)
+                    WHERE image_url IS NOT NULL
                 """);
 
-        run("""
-                CREATE INDEX IF NOT EXISTS categories_title_trgm_idx
-                ON categories
-                USING GIN ((lower(category_title)) gin_trgm_ops)
+        runIfColumnExists("categories", "category_title", """
+                    CREATE INDEX IF NOT EXISTS categories_title_trgm_idx
+                    ON categories
+                    USING GIN ((lower(category_title)) gin_trgm_ops)
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS categories_slug_lower_idx
-                ON categories((lower(slug)))
+        runIfColumnExists("categories", "slug", """
+                    CREATE INDEX IF NOT EXISTS categories_slug_lower_idx
+                    ON categories((lower(slug)))
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS subcategories_title_trgm_idx
-                ON subcategories
-                USING GIN ((lower(sub_category_title)) gin_trgm_ops)
+        runIfColumnExists("subcategories", "sub_category_title", """
+                    CREATE INDEX IF NOT EXISTS subcategories_title_trgm_idx
+                    ON subcategories
+                    USING GIN ((lower(sub_category_title)) gin_trgm_ops)
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS subcategories_slug_lower_idx
-                ON subcategories((lower(sub_category_slug)))
+        runIfColumnExists("subcategories", "sub_category_slug", """
+                    CREATE INDEX IF NOT EXISTS subcategories_slug_lower_idx
+                    ON subcategories((lower(sub_category_slug)))
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS leaf_categories_title_trgm_idx
-                ON leaf_categories
-                USING GIN ((lower(leaf_category_title)) gin_trgm_ops)
+        runIfColumnExists("leaf_categories", "leaf_category_title", """
+                    CREATE INDEX IF NOT EXISTS leaf_categories_title_trgm_idx
+                    ON leaf_categories
+                    USING GIN ((lower(leaf_category_title)) gin_trgm_ops)
                 """);
-        run("""
-                CREATE INDEX IF NOT EXISTS leaf_categories_slug_lower_idx
-                ON leaf_categories((lower(leaf_category_slug)))
+        runIfColumnExists("leaf_categories", "leaf_category_slug", """
+                    CREATE INDEX IF NOT EXISTS leaf_categories_slug_lower_idx
+                    ON leaf_categories((lower(leaf_category_slug)))
                 """);
+    }
+
+    private void addProductSearchDocumentColumns() {
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS title text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS product_url text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS image_url text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS company text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS category_id uuid");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS category_title text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS category_slug text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS subcategory_title text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS subcategory_slug text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS leaf_category_title text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS leaf_category_slug text");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS original_price numeric(12, 2)");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS sortable_price numeric(12, 2)");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS search_text text NOT NULL DEFAULT ''");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS search_vector tsvector NOT NULL DEFAULT ''::tsvector");
+        run("ALTER TABLE product_search_documents ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now()");
+    }
+
+    private void runIfColumnExists(String tableName, String columnName, String sql) {
+        if (columnExists(tableName, columnName)) {
+            run(sql);
+        }
+    }
+
+    private boolean columnExists(String tableName, String columnName) {
+        try {
+            Boolean exists = jdbcTemplate.queryForObject("""
+                    SELECT EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = ?
+                          AND column_name = ?
+                    )
+                    """, Boolean.class, tableName, columnName);
+            return Boolean.TRUE.equals(exists);
+        } catch (Exception e) {
+            log.warn("Could not check column {}.{} before creating search optimization index: {}",
+                    tableName, columnName, e.getMessage());
+            return false;
+        }
     }
 
     private void run(String sql) {

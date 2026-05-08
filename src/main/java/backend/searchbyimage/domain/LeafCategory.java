@@ -16,36 +16,29 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "products")
-public class Product {
+@Table(name = "leaf_categories")
+public class LeafCategory {
 
     @Id
     @Column(nullable = false)
     private UUID id;
 
-    @Column(columnDefinition = "TEXT")
-    private String title;
-
-    @Column(name = "product_url", unique = true, columnDefinition = "TEXT")
-    private String productUrl;
-
-    @Column(name = "image_url", columnDefinition = "TEXT")
-    private String imageUrl;
-
-    @Column(columnDefinition = "TEXT")
-    private String company;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
+    @JoinColumn(name = "category_id", nullable = false)
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subcategory_id")
+    @JoinColumn(name = "subcategory_id", nullable = false)
     private Subcategory subcategory;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "leaf_category_id")
-    private LeafCategory leafCategory;
+    @Column(name = "leaf_category_title", nullable = false, columnDefinition = "TEXT")
+    private String leafCategoryTitle;
+
+    @Column(name = "leaf_category_slug", nullable = false, unique = true, columnDefinition = "TEXT")
+    private String leafCategorySlug;
+
+    @Column(nullable = false, unique = true, columnDefinition = "TEXT")
+    private String slug;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

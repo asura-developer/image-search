@@ -1,107 +1,107 @@
 package backend.searchbyimage.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
 @Getter
-@EntityListeners(backend.searchbyimage.search.index.IndexSyncListener.class)
+@Setter
 @Entity
 @Table(name = "product_details")
 public class ProductDetail {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(nullable = false)
+    private UUID id;
 
-    @JsonIgnore
-    @Setter
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false, unique = true)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Setter
-    @Column(name = "full_title", length = 1000)
-    private String fullTitle;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "scrape_run_id")
+    private ScrapeRun scrapeRun;
 
-    @Setter
-    @Column(name = "full_description", columnDefinition = "TEXT")
-    private String fullDescription;
+    @Column(nullable = false)
+    private boolean success;
 
-    @Setter
-    @Column(length = 255)
-    private String brand;
+    @Column(name = "scraped_at")
+    private OffsetDateTime scrapedAt;
 
-    @Setter
-    @Column(length = 20)
-    private String rating;
+    @Column(columnDefinition = "TEXT")
+    private String url;
 
-    @Setter
-    @Column(name = "review_count", length = 50)
-    private String reviewCount;
+    @Column(name = "product_title", columnDefinition = "TEXT")
+    private String productTitle;
 
-    @Setter
-    @Column(name = "sales_volume", length = 50)
-    private String salesVolume;
+    @Column(name = "page_title", columnDefinition = "TEXT")
+    private String pageTitle;
 
-    @Setter
-    @Column(name = "original_price", length = 50)
-    private String originalPrice;
+    @Column(name = "supplier_name", columnDefinition = "TEXT")
+    private String supplierName;
 
-    @Setter
-    @Column(name = "in_stock")
-    private Boolean inStock;
+    @Column(name = "original_price", precision = 12, scale = 2)
+    private BigDecimal originalPrice;
 
-    @Setter
-    @Column(name = "shipping_info", columnDefinition = "TEXT")
-    private String shippingInfo;
+    @Column(name = "original_price_usd", precision = 12, scale = 2)
+    private BigDecimal originalPriceUsd;
 
-    // ─── Data Quality Flags ───────────────────────────────────────────────────
+    @Column(name = "promotional_price", precision = 12, scale = 2)
+    private BigDecimal promotionalPrice;
 
-    @Setter
-    @Column(name = "dq_has_title")
-    private Boolean dqHasTitle;
+    @Column(name = "promotional_price_usd", precision = 12, scale = 2)
+    private BigDecimal promotionalPriceUsd;
 
-    @Setter
-    @Column(name = "dq_has_price")
-    private Boolean dqHasPrice;
+    @Column(name = "coupon_price", precision = 12, scale = 2)
+    private BigDecimal couponPrice;
 
-    @Setter
-    @Column(name = "dq_has_images")
-    private Boolean dqHasImages;
+    @Column(name = "coupon_price_usd", precision = 12, scale = 2)
+    private BigDecimal couponPriceUsd;
 
-    @Setter
-    @Column(name = "dq_has_variants")
-    private Boolean dqHasVariants;
+    @Column(name = "first_piece_estimated_price", precision = 12, scale = 2)
+    private BigDecimal firstPieceEstimatedPrice;
 
-    @Setter
-    @Column(name = "dq_has_specs")
-    private Boolean dqHasSpecs;
+    @Column(name = "first_piece_estimated_price_usd", precision = 12, scale = 2)
+    private BigDecimal firstPieceEstimatedPriceUsd;
 
-    @Setter
-    @Column(name = "dq_has_brand")
-    private Boolean dqHasBrand;
+    @Column(name = "price_text", columnDefinition = "TEXT")
+    private String priceText;
 
-    @Setter
-    @Column(name = "dq_has_reviews")
-    private Boolean dqHasReviews;
+    @Column(name = "quantity_price_tiers", nullable = false, columnDefinition = "jsonb")
+    private String quantityPriceTiers;
 
-    @Setter
-    @Column(name = "dq_has_description")
-    private Boolean dqHasDescription;
+    @Column(name = "discount_rules", nullable = false, columnDefinition = "jsonb")
+    private String discountRules;
 
-    @Setter
-    @Column(name = "dq_has_sales_volume")
-    private Boolean dqHasSalesVolume;
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String pricing;
 
-    @Setter
-    @Column(name = "dq_has_shop_name")
-    private Boolean dqHasShopName;
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String availability;
 
-    @Setter
-    @Column(name = "dq_completeness")
-    private Integer dqCompleteness;
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String variants;
 
-    public ProductDetail() {}
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String attributes;
+
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String media;
+
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private String meta;
+
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
 }
